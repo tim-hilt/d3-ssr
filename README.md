@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SSR vs. CSR - Next.js + d3
 
-## Getting Started
+## The problem
 
-First, run the development server:
+There are basically two options when it comes to rendering d3 in a React-App: You either render the svg using React or using d3s builder-pattern API.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Both options are not fully compatible with Server Side Rendering (SSR). In a Next.js-application, the author has to put `"use client"` at the top of every file that contains code for a d3-chart and the user sees a small flash when (re-)loading the page.
+
+Why is that?
+
+When using d3s rendering, the general pattern looks like this:
+
+``` tsx
+const Chart = () => {
+    const gRef = useRef();
+
+    useEffect(() => {
+        d3.select(gRef.current).
+            .selectAll("circle")
+            .data(data)
+            .join("circle")
+            // ...
+    }, [svgRef])
+
+    return (
+        <svg>
+            <g ref={gref} />
+        </svg>
+    )
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The hooks unfortunately remove the ability to render the component on the server.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+When using React for rendering, what hinders us to use SSR are axis. Axis in d3 are drawn using `d3.axisBottom / Top / Left / Right`. Unfortunately these functions can only be used during the d3-render-lifecycle, which resurfaces the problem from before:
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+``` tsx
+  const gx = useRef();
+  const x = d3.scaleLinear(
+    [0, data.length - 1],
+    [marginLeft, width - marginRight]
+  );
 
-## Learn More
+  useEffect(() => void d3.select(gx.current).call(d3.axisBottom(x)), [gx, x]);
+```
 
-To learn more about Next.js, take a look at the following resources:
+...and we're back to using hooks again. The issue can be softened, when we refactor the chart, so that the axis receive their own React-components, which can be client-components. The parent-chart can still remain SSRed.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## A solution
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Because the axis are the only reason we have to use CSR when rendering with React, we could reimplement the `d3.axis...`-functions as React-components and use those without hooks. Luckily this has already been done in [tmcw/d3-axis-for-react](https://github.com/tmcw/d3-axis-for-react), which is used by this repository.
 
-## Deploy on Vercel
+## Comparing SSR vs CSR
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+If you run `pnpm dev` in the project-root and open up `localhost:3000` in the browser, you can compare the two solutions in terms of flashing and transferred JS.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## TODOs
+
+- [ ] Implement responsive scaling
+- [ ] Compare CSR-d3-rendering
