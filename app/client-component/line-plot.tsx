@@ -1,6 +1,7 @@
+"use client";
+
 import * as d3 from "d3";
-import { Axis, Orient } from "d3-axis-for-react";
-import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 type LinePlotProps = {
   data: Array<number>;
@@ -12,7 +13,7 @@ type LinePlotProps = {
   marginRight?: number;
 };
 
-function LinePlot({
+export default function LinePlot({
   data,
   width = 640,
   height = 400,
@@ -21,14 +22,19 @@ function LinePlot({
   marginBottom = 30,
   marginLeft = 40,
 }: LinePlotProps) {
+  const gx = useRef(null);
+  const gy = useRef(null);
   const x = d3.scaleLinear(
     [0, data.length - 1],
     [marginLeft, width - marginRight]
   );
   const [minY, maxY] = d3.extent(data) as unknown as [number, number];
   const y = d3.scaleLinear([minY, maxY], [height - marginBottom, marginTop]);
-  const line = d3.line((_, i) => x(i), y);
-
+  const line = d3.line((d, i) => x(i), y);
+  // @ts-ignore
+  useEffect(() => void d3.select(gx.current).call(d3.axisBottom(x)), [gx, x]);
+  // @ts-ignore
+  useEffect(() => void d3.select(gy.current).call(d3.axisLeft(y)), [gy, y]);
   return (
     <svg width={width} height={height}>
       <text
@@ -37,14 +43,10 @@ function LinePlot({
         textAnchor="middle"
         fontSize="16px"
       >
-        Server Component
+        Client Component
       </text>
-      <g transform={`translate(0, ${height - marginBottom})`}>
-        <Axis scale={x} />
-      </g>
-      <g transform={`translate(${marginLeft}, 0)`}>
-        <Axis scale={y} orient={Orient.left} />
-      </g>
+      <g ref={gx} transform={`translate(0,${height - marginBottom})`} />
+      <g ref={gy} transform={`translate(${marginLeft},0)`} />
       <path
         fill="none"
         stroke="currentColor"
@@ -57,21 +59,5 @@ function LinePlot({
         ))}
       </g>
     </svg>
-  );
-}
-
-export default function Page() {
-  return (
-    <div className="flex flex-col space-y-5">
-      <div>
-        <Link
-          href="/client-component"
-          className="border rounded-md border-black p-2"
-        >
-          Go To Client Component
-        </Link>
-      </div>
-      <LinePlot data={[1, 4, 3, 2, 8]} />
-    </div>
   );
 }
