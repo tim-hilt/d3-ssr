@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { Axis, Orient } from "d3-axis-for-react";
+import Link from "next/link";
 
 type LinePlotProps = {
   data: Array<number>;
@@ -52,7 +53,15 @@ function LinePlot({
 
 export default function Page() {
   return (
-    <div>
+    <div className="flex flex-col space-y-5">
+      <div>
+        <Link
+          href="/client-component"
+          className="border rounded-md border-black p-2"
+        >
+          Client Component
+        </Link>
+      </div>
       <LinePlot data={[1, 4, 3, 2, 8]} />
     </div>
   );
